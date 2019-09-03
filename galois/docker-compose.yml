@@ -1,0 +1,81 @@
+version: '2.3'
+services:
+  autocompleter:
+    container_name: autocompleter
+    image: iedmrc/galois-autocompleter:latest-gpu
+    restart: always
+    expose:
+      - "3030"
+    runtime: nvidia
+    networks:
+      galois_network:
+        ipv4_address: 172.21.0.2
+        aliases:
+          - autocompleter
+  web:
+    container_name: web
+    image: iedmrc/galois-web:latest
+    restart: always
+    expose:
+      - "3003"
+    env_file: ./web/backend/.env
+    environment:
+      VIRTUAL_HOST: ".usegalois.com"
+      VIRTUAL_PORT: 3003
+      LETSENCRYPT_HOST: usegalois.com
+      LETSENCRYPT_EMAIL: info@usegalois.com
+      LETSENCRYPT_KEYSIZE: 2048
+    depends_on:
+      - autocompleter
+    networks:
+      galois_network:
+        ipv4_address: 172.21.0.3
+        aliases:
+          - web
+  nginx-proxy:
+    container_name: nginx_proxy
+    image: jwilder/nginx-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/vhost.d:/etc/nginx/vhost.d
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/html:/usr/share/nginx/html
+    depends_on:
+      - web
+    networks:
+      galois_network:
+        ipv4_address: 172.21.0.4
+        aliases:
+          - nginx_proxy
+  nginx-letsencrypt:
+    container_name: nginx_letsencrypt
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    restart: always
+    environment:
+      NGINX_DOCKER_GEN_CONTAINER: nginx_proxy
+      NGINX_PROXY_CONTAINER: nginx_proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/vhost.d:/etc/nginx/vhost.d
+      - ./nginx/certs:/etc/nginx/certs:rw
+      - ./nginx/html:/usr/share/nginx/html
+    depends_on:
+      - nginx-proxy
+    networks:
+      galois_network:
+        ipv4_address: 172.21.0.5
+        aliases:
+          - nginx_letsencrypt
+networks:
+  galois_network:
+      driver: bridge
+      ipam:
+        driver: default
+        config:
+          - subnet: 172.21.0.0/24

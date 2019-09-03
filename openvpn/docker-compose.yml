@@ -1,0 +1,36 @@
+version: '3'
+services:
+  openvpn:
+    cap_add:
+     - NET_ADMIN
+    image: kylemanna/openvpn
+    container_name: openvpn
+    ports:
+     - "1194:1194/udp"
+    restart: always
+    volumes:
+     - ./openvpn/conf:/etc/openvpn
+    networks:
+      vpn_network:
+        ipv4_address: 172.20.0.99
+  openvpnTCP:
+    cap_add:
+     - NET_ADMIN
+    image: kylemanna/openvpn
+    container_name: openvpnTCP
+    ports:
+     - "5000:1194/tcp"
+    restart: always
+    volumes:
+     - ./openvpn/conf:/etc/openvpn
+    entrypoint: "ovpn_run --proto tcp"
+    networks:
+      vpn_network:
+        ipv4_address: 172.20.0.98
+networks:
+  vpn_network:
+      driver: bridge
+      ipam:
+        driver: default
+        config:
+          - subnet: 172.20.0.0/24

@@ -1,0 +1,44 @@
+
+version: "3"
+services:
+    osrm:
+        container_name: osrm
+        image: osrm/osrm-backend
+        restart: always
+        ports:
+            - "5000:5000"
+        volumes:
+            - ./osrm:/data
+        command: "osrm-routed --max-matching-size 1000 --max-table-size 1000 --max-viaroute-size 1000 --algorithm mld /data/turkey-latest.osrm"
+        networks:
+            tsp_network:
+                aliases:
+                - osrm
+    vroom-backend:
+        container_name: vroom-backend
+        image: iedmrc/vroom
+        restart: always
+        ports:
+            - "3000:3000"
+        depends_on:
+            - osrm
+        networks:
+            tsp_network:
+                aliases:
+                - vroom-backend
+    vroom-frontend:
+        container_name: vroom-frontend
+        image: iedmrc/vroom-frontend
+        restart: always
+        ports:
+            - "9966:9966"
+        depends_on:
+            - osrm
+            - vroom-backend
+        networks:
+            tsp_network:
+                aliases:
+                - vroom-frontend
+networks:
+  tsp_network:
+      driver: bridge
